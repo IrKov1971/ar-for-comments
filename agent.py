@@ -39,13 +39,30 @@ def update_github_secret(secret_name, secret_value, gh_pat):
 
 
 def get_qbo_access_token(client_id, client_secret, refresh_token):
+    client_id = client_id.strip()
+    client_secret = client_secret.strip()
+    refresh_token = refresh_token.strip()
+
+    print("QBO_CLIENT_ID present:", bool(client_id), "len:", len(client_id), "start:", client_id[:6])
+    print("QBO_CLIENT_SECRET present:", bool(client_secret), "len:", len(client_secret))
+    print("QBO_REFRESH_TOKEN present:", bool(refresh_token), "len:", len(refresh_token), "end:", refresh_token[-10:])
+    print("QBO token endpoint:", QBO_TOKEN_URL)
+
     auth = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     r = httpx.post(
         QBO_TOKEN_URL,
-        headers={"Authorization": f"Basic {auth}", "Accept": "application/json"},
+        headers={
+            "Authorization": f"Basic {auth}",
+            "Accept": "application/json",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
         data={"grant_type": "refresh_token", "refresh_token": refresh_token},
         timeout=30,
     )
+
+    print("Intuit status:", r.status_code)
+    print("Intuit body:", r.text)
+
     r.raise_for_status()
     data = r.json()
     new_refresh = data.get("refresh_token")
