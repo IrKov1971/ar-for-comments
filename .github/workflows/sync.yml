@@ -13,7 +13,7 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: pip install -r requirements.txt PyNaCl
       - name: Run sync
         env:
           QBO_CLIENT_ID: ${{ secrets.QBO_CLIENT_ID }}
@@ -22,4 +22,5 @@ jobs:
           QBO_REALM_ID: ${{ secrets.QBO_REALM_ID }}
           SPREADSHEET_ID: ${{ secrets.SPREADSHEET_ID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: python agent.py
