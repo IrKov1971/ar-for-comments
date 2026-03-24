@@ -105,6 +105,36 @@ def fetch_unpaid_invoices(realm_id, access_token):
 
 
 
+
+def fetch_customer_map(realm_id, access_token):
+    """Fetch all customers and return {id: customer} map."""
+    customers = {}
+    start, page = 1, 1000
+    while True:
+        data = qbo_query(realm_id, access_token, f"SELECT * FROM Customer STARTPOSITION {start} MAXRESULTS {page}")
+        batch = data.get("QueryResponse", {}).get("Customer", []) or []
+        if not batch:
+            break
+        for c in batch:
+            customers[c["Id"]] = c
+        if len(batch) < page:
+            break
+        start += page
+    return customers
+
+
+def enrich_invoices(invoices, customer_map):
+    """For project-based invoices (those with ProjectRef), prepend parent customer name."""
+    for inv in invoices:
+        if not inv.get("ProjectRef"):
+            continue
+        ref = inv.get("CustomerRef", {})
+        customer = customer_map.get(ref.get("value", ""))
+        if customer and customer.get("ParentRef"):
+            parent = customer_map.get(customer["ParentRef"]["value"])
+            if parent:
+                ref["name"] = f"{parent['DisplayName']}:{ref.get('name', '')}"
+
 def parse_date(s):
     return datetime.strptime(s, "%Y-%m-%d").date()
 
@@ -238,6 +268,8 @@ def main():
         os.environ["QBO_REFRESH_TOKEN"],
     )
     all_invoices = fetch_unpaid_invoices(os.environ["QBO_REALM_ID"], access_token)
+    customer_map = fetch_customer_map(os.environ["QBO_REALM_ID"], access_token)
+    enrich_invoices(all_invoices, customer_map)
     filtered = filter_and_sort(all_invoices)
     print(f"✅ {len(all_invoices)} unpaid, {len(filtered)} after filter")
     service = get_sheets_service(os.environ["GOOGLE_SERVICE_ACCOUNT_JSON"])
