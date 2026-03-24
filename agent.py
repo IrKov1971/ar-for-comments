@@ -121,14 +121,15 @@ def fetch_customer_map(realm_id, access_token):
 
 
 def enrich_invoices(invoices, customer_map):
-    """Prepend parent name to CustomerRef.name for sub-customers."""
+    """Prepend parent name to CustomerRef.name only when parent name contains '(partner)'."""
     for inv in invoices:
         ref = inv.get("CustomerRef", {})
         customer = customer_map.get(ref.get("value", ""))
         if customer and customer.get("ParentRef"):
             parent = customer_map.get(customer["ParentRef"]["value"])
             parent_name = parent["DisplayName"] if parent else customer["ParentRef"].get("name", "")
-            ref["name"] = f"{parent_name} (Partner):{ref.get('name', '')}"
+            if "(partner)" in parent_name.lower():
+                ref["name"] = f"{parent_name} (Partner):{ref.get('name', '')}"
 
 
 def parse_date(s):
