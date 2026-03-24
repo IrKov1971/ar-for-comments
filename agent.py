@@ -144,6 +144,45 @@ def read_sheet(service, spreadsheet_id):
     return service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range=f"{SHEET_TAB}!A:H").execute().get("values", [])
 
 
+def apply_overdue_formatting(service, spreadsheet_id, kept_rows):
+    meta = service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+    sheet_id = next(
+        s["properties"]["sheetId"]
+        for s in meta["sheets"]
+        if s["properties"]["title"] == SHEET_TAB
+    )
+    requests = []
+    for i, (_, row) in enumerate(kept_rows):
+        if len(row) > 3 and "overdue" in row[3]:
+            row_index = DATA_START_ROW - 1 + i  # 0-based row index
+            requests.append({
+                "repeatCell": {
+                    "range": {
+                        "sheetId": sheet_id,
+                        "startRowIndex": row_index,
+                        "endRowIndex": row_index + 1,
+                        "startColumnIndex": 3,  # column D
+                        "endColumnIndex": 4,
+                    },
+                    "cell": {
+                        "userEnteredFormat": {
+                            "backgroundColor": {
+                                "red": 255 / 255,
+                                "green": 182 / 255,
+                                "blue": 193 / 255,
+                            }
+                        }
+                    },
+                    "fields": "userEnteredFormat.backgroundColor",
+                }
+            })
+    if requests:
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={"requests": requests},
+        ).execute()
+
+
 def update_sheet(service, spreadsheet_id, invoices):
     current_rows = read_sheet(service, spreadsheet_id)
     existing = {row[4]: i for i, row in enumerate(current_rows) if i > 0 and len(row) >= 5 and row[4]}
@@ -184,6 +223,7 @@ def update_sheet(service, spreadsheet_id, invoices):
     service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=f"{SHEET_TAB}!A{DATA_START_ROW}:H{DATA_START_ROW + rows_to_clear}").execute()
     if kept_rows:
         service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=f"{SHEET_TAB}!A{DATA_START_ROW}", valueInputOption="USER_ENTERED", body={"values": [r for _, r in kept_rows]}).execute()
+    apply_overdue_formatting(service, spreadsheet_id, kept_rows)
     return len(kept_rows), len(to_delete), len(new_nums - existing_nums)
 
 
