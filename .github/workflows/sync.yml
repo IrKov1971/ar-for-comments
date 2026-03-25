@@ -1,7 +1,7 @@
 name: AR Sync
 on:
   schedule:
-    - cron: "0 16 * * *"
+    - cron: "0 14 * * *"
   workflow_dispatch:
 jobs:
   sync:
@@ -11,7 +11,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.12"h
       - name: Install dependencies
         run: pip install -r requirements.txt PyNaCl
       - name: Run sync
