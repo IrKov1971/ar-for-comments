@@ -17,25 +17,18 @@ GITHUB_API = "https://api.github.com"
 GH_REPO = "IrKov1971/ar-for-comments"
 
 
-def update_github_secret(secret_name, secret_value, gh_pat):
-    """Encrypt and update a GitHub Actions secret using the repo public key."""
-    from nacl.public import PublicKey, SealedBox
+def update_github_variable(variable_name, variable_value, gh_pat):
     headers = {
         "Authorization": f"token {gh_pat}",
-        "Accept": "application/vnd.github.v3+json",
+        "Accept": "application/vnd.github+json",
     }
-    r = httpx.get(f"{GITHUB_API}/repos/{GH_REPO}/actions/secrets/public-key", headers=headers, timeout=15)
-    r.raise_for_status()
-    key_data = r.json()
-    pub_key = PublicKey(base64.b64decode(key_data["key"]))
-    encrypted = base64.b64encode(SealedBox(pub_key).encrypt(secret_value.encode())).decode()
-    r2 = httpx.put(
-        f"{GITHUB_API}/repos/{GH_REPO}/actions/secrets/{secret_name}",
+    r = httpx.patch(
+        f"{GITHUB_API}/repos/{GH_REPO}/actions/variables/{variable_name}",
         headers=headers,
-        json={"encrypted_value": encrypted, "key_id": key_data["key_id"]},
+        json={"name": variable_name, "value": variable_value},
         timeout=15,
     )
-    r2.raise_for_status()
+    r.raise_for_status()
 
 
 def get_qbo_access_token(client_id, client_secret, refresh_token):
@@ -67,13 +60,13 @@ def get_qbo_access_token(client_id, client_secret, refresh_token):
     data = r.json()
     new_refresh = data.get("refresh_token")
     if new_refresh and new_refresh != refresh_token:
-        print("🔄 Intuit issued a new refresh_token — updating GitHub secret QBO_REFRESH_TOKEN")
+        print("🔄 Intuit issued a new refresh_token — updating GitHub variable QBO_REFRESH_TOKEN")
         gh_pat = os.environ.get("GH_PAT")
         if gh_pat:
-            update_github_secret("QBO_REFRESH_TOKEN", new_refresh, gh_pat)
-            print("✅ QBO_REFRESH_TOKEN secret updated")
+            update_github_variable("QBO_REFRESH_TOKEN", new_refresh, gh_pat)
+            print("✅ QBO_REFRESH_TOKEN variable updated")
         else:
-            print("⚠️  GH_PAT not set — cannot update QBO_REFRESH_TOKEN secret")
+            print("⚠️  GH_PAT not set — cannot update QBO_REFRESH_TOKEN variable")
     return data["access_token"]
 
 
